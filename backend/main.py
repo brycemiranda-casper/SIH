@@ -1,56 +1,78 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-import random
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+from typing import List
 
-app = FastAPI(title="NEXUS-NER AI Backend", version="1.0.0")
+import models, schemas
+from database import engine, get_db
 
-class RiskPredictionRequest(BaseModel):
-    weather_condition: str
-    road_condition: str
-    terrain_risk: str
-    incident_count: int
+models.Base.metadata.create_all(bind=engine)
 
-@app.get("/")
-def read_root():
-    return {"message": "Welcome to NEXUS-NER AI API"}
+app = FastAPI(title="NEXUS-NER API")
 
-@app.get("/api/vehicles")
-def get_vehicles():
-    # Dummy vehicles
-    return [
-        {"id": "MED-101", "cargo": "Medicine", "location": "Bomdila", "status": "Moving", "risk": "High"},
-        {"id": "FOOD-202", "cargo": "Food", "location": "Tezpur", "status": "Moving", "risk": "Medium"},
-        {"id": "REL-301", "cargo": "Relief", "location": "Tawang", "status": "Delayed", "risk": "Critical"}
-    ]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.get("/api/incidents")
-def get_incidents():
-    # Dummy incidents
-    return [
-        {"id": 1, "type": "Landslide", "location": "West Kameng", "severity": "High"},
-        {"id": 2, "type": "Flood", "location": "Dhemaji", "severity": "Medium"}
-    ]
+@app.get("/api/incidents", response_model=List[schemas.Incident])
+def read_incidents(db: Session = Depends(get_db)):
+    incidents = db.query(models.Incident).all()
+    return incidents
 
-@app.post("/api/ai/risk-prediction")
-def predict_risk(request: RiskPredictionRequest):
-    # Dummy AI risk calculation based on blueprint
-    # Rainfall × 30% + Road Condition × 25% + Terrain × 20% + Incident Reports × 25%
+@app.patch("/api/incidents/{incident_id}", response_model=schemas.Incident)
+def update_incident(incident_id: str, incident_update: schemas.IncidentUpdate, db: Session = Depends(get_db)):
+    db_incident = db.query(models.Incident).filter(models.Incident.id == incident_id).first()
+    if not db_incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
     
-    score = random.randint(40, 95) # Simulating a dynamic score
-    status = "SAFE"
-    if score > 80:
-        status = "CRITICAL"
-    elif score > 60:
-        status = "HIGH"
-    elif score > 30:
-        status = "MODERATE"
+    db_incident.status = incident_update.status
+    db.commit()
+    db.refresh(db_incident)
+    return db_incident
+
+@app.get("/api/vehicles", response_model=List[schemas.Vehicle])
+def read_vehicles(db: Session = Depends(get_db)):
+    vehicles = db.query(models.Vehicle).all()
+    return vehicles
+
+@app.patch("/api/vehicles/{vehicle_id}", response_model=schemas.Vehicle)
+def update_vehicle(vehicle_id: str, vehicle_update: schemas.VehicleUpdate, db: Session = Depends(get_db)):
+    db_vehicle = db.query(models.Vehicle).filter(models.Vehicle.id == vehicle_id).first()
+    if not db_vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    
+    db_vehicle.status = vehicle_update.status
+    db.commit()
+    db.refresh(db_vehicle)
+    return db_vehicle
+
+@app.post("/api/ai/risk-prediction", response_model=schemas.RiskPredictionResponse)
+def predict_risk(request: schemas.RiskPredictionRequest):
+    # Mock AI calculation based on input
+    base_risk = 50
+    if request.weather_condition == "Heavy Rain":
+        base_risk += 20
+    if request.terrain_risk == "Mountainous":
+        base_risk += 10
+    
+    base_risk += request.incident_count * 2
+
+    status = "Low"
+    if base_risk > 80:
+        status = "Critical"
+    elif base_risk > 60:
+        status = "High"
         
     return {
-        "risk_score": score,
+        "risk_score": min(base_risk, 100),
         "status": status,
-        "recommendation": "Reroute Immediately" if score > 80 else "Proceed with caution"
+        "breakdown": {
+            "Terrain": 80 if request.terrain_risk == "Mountainous" else 30,
+            "Weather": 90 if request.weather_condition == "Heavy Rain" else 20,
+            "Density": min(request.incident_count * 15, 100)
+        }
     }
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)

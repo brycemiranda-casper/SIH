@@ -12,6 +12,7 @@ import Point from 'ol/geom/Point';
 import { Style, Fill, Stroke, Circle as CircleStyle, Text as TextStyle } from 'ol/style';
 import { fromLonLat, transformExtent } from 'ol/proj';
 import Overlay from 'ol/Overlay';
+import useStore from '../../store/useStore';
 
 // ── Risk Incident Data ────────────────────────────────────────────────────────
 const INCIDENTS = [
@@ -267,6 +268,105 @@ const MapComponent = ({ activeLayers }) => {
     if (layersRef.current.blocked)   layersRef.current.blocked.setVisible(activeLayers.blocked ?? true);
     if (layersRef.current.monsoon)   layersRef.current.monsoon.setVisible(activeLayers.monsoon ?? false);
   }, [activeLayers, map]);
+
+  // Sync All Routes
+  useEffect(() => {
+    if (!map) return;
+    
+    // Remove existing route layer if any
+    if (layersRef.current.route) {
+      map.removeLayer(layersRef.current.route);
+      layersRef.current.route = null;
+    }
+    // Remove existing waypoints layer if any
+    if (layersRef.current.waypoints) {
+      map.removeLayer(layersRef.current.waypoints);
+      layersRef.current.waypoints = null;
+    }
+
+    const { routes, selectedRouteIndex, routeWaypoints } = useStore.getState();
+
+    if (routes && routes.length > 0) {
+      const routeFeatures = routes.map((route, idx) => {
+        const isSelected = idx === selectedRouteIndex;
+        const feature = new Feature({ geometry: new GeoJSON().readGeometry(route.geojson, { featureProjection: 'EPSG:3857' }) });
+        
+        let color = '#94a3b8'; // Default slate
+        if (route.risk === 'Low') color = '#10b981'; // Emerald
+        if (route.risk === 'Medium') color = '#f59e0b'; // Amber
+        if (route.risk === 'High') color = '#ef4444'; // Red
+
+        feature.setStyle(new Style({
+          stroke: new Stroke({
+            color: isSelected ? color : color + '80', // Add transparency if not selected
+            width: isSelected ? 6 : 4,
+            lineDash: isSelected ? undefined : [10, 10]
+          })
+        }));
+        
+        // Ensure selected route renders on top
+        if (isSelected) {
+          feature.set('zIndex', 10);
+        } else {
+          feature.set('zIndex', 1);
+        }
+        
+        return feature;
+      });
+      
+      // Sort features so zIndex works properly within the source
+      routeFeatures.sort((a, b) => (a.get('zIndex') || 0) - (b.get('zIndex') || 0));
+
+      const routeSource = new VectorSource({ features: routeFeatures });
+
+      const routeLayer = new VectorLayer({
+        source: routeSource,
+        zIndex: 20, // Render on top of map
+      });
+
+      map.addLayer(routeLayer);
+      layersRef.current.route = routeLayer;
+
+      // Add waypoints
+      if (routeWaypoints && routeWaypoints.length > 0) {
+        const wpFeatures = routeWaypoints.map((wp, i) => {
+          const isOrigin = i === 0;
+          const isDest = i === routeWaypoints.length - 1;
+          const label = isOrigin ? 'A' : isDest ? 'B' : `${i}`;
+          
+          const feature = new Feature({ geometry: new Point(fromLonLat([wp.lon, wp.lat])) });
+          feature.setStyle(
+            new Style({
+              image: new CircleStyle({
+                radius: 12,
+                fill: new Fill({ color: isOrigin ? '#10b981' : isDest ? '#ef4444' : '#f59e0b' }),
+                stroke: new Stroke({ color: '#fff', width: 2 }),
+              }),
+              text: new TextStyle({
+                text: label,
+                fill: new Fill({ color: '#fff' }),
+                font: 'bold 12px sans-serif'
+              })
+            })
+          );
+          return feature;
+        });
+
+        const wpLayer = new VectorLayer({
+          source: new VectorSource({ features: wpFeatures }),
+          zIndex: 21
+        });
+        map.addLayer(wpLayer);
+        layersRef.current.waypoints = wpLayer;
+      }
+
+      // Fit map to route extent
+      map.getView().fit(routeSource.getExtent(), {
+        padding: [50, 50, 50, 50],
+        duration: 1000
+      });
+    }
+  }, [map, useStore(state => state.routes), useStore(state => state.selectedRouteIndex)]); // Subscribe to route changes
 
   return (
     <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
