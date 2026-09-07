@@ -21,6 +21,25 @@ app.add_middleware(
 @app.get("/api/incidents", response_model=List[schemas.Incident])
 def read_incidents(db: Session = Depends(get_db)):
     incidents = db.query(models.Incident).all()
+    
+    # Merge live NDMA alerts into the incidents list
+    import external_services
+    live_geojson = external_services.fetch_ndma_alerts_geojson()
+    
+    for feat in live_geojson.get("features", []):
+        props = feat.get("properties", {})
+        coords = feat.get("geometry", {}).get("coordinates", [0, 0])
+        live_incident = schemas.Incident(
+            id=str(props.get("id", "live-0")),
+            type="NDMA Alert",
+            severity=props.get("severity", "High").upper(),
+            location=f"Lat: {coords[1]:.2f}, Lon: {coords[0]:.2f}",
+            status="Active",
+            timestamp="Live",
+            description=props.get("headline", "Live alert from NDMA CAP feed")
+        )
+        incidents.append(live_incident)
+        
     return incidents
 
 @app.patch("/api/incidents/{incident_id}", response_model=schemas.Incident)
@@ -76,3 +95,15 @@ def predict_risk(request: schemas.RiskPredictionRequest):
             "Density": min(request.incident_count * 15, 100)
         }
     }
+
+import external_services
+
+@app.get("/api/geojson/weather")
+def get_weather_geojson():
+    """Fetch live IMD weather data as GeoJSON."""
+    return external_services.fetch_imd_weather_geojson()
+
+@app.get("/api/geojson/alerts")
+def get_alerts_geojson():
+    """Fetch live NDMA CAP alerts as GeoJSON."""
+    return external_services.fetch_ndma_alerts_geojson()

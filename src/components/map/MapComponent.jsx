@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import 'ol/ol.css';
+import { defaults as defaultInteractions } from 'ol/interaction';
 import Map from 'ol/Map';
 import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
+import XYZ from 'ol/source/XYZ';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import GeoJSON from 'ol/format/GeoJSON';
@@ -15,16 +17,7 @@ import Overlay from 'ol/Overlay';
 import useStore from '../../store/useStore';
 
 // ── Risk Incident Data ────────────────────────────────────────────────────────
-const INCIDENTS = [
-  { id: 1, type: 'landslide', lon: 92.45, lat: 27.10, severity: 'CRITICAL', title: 'Landslide — West Kameng', detail: 'NH-13 blocked. Risk score 91%. Reroute via Tezpur.' },
-  { id: 2, type: 'landslide', lon: 91.90, lat: 25.55, severity: 'HIGH',     title: 'Landslide — East Khasi Hills', detail: 'Road damage near Shillong. Proceed with caution.' },
-  { id: 3, type: 'landslide', lon: 93.70, lat: 26.10, severity: 'HIGH',     title: 'Landslide — Nagaon', detail: 'Slope failure detected. Clearance in progress.' },
-  { id: 4, type: 'flood',     lon: 94.60, lat: 27.50, severity: 'CRITICAL', title: 'Flood — Dhemaji', detail: 'Brahmaputra overflow. NH-15 submerged. Avoid area.' },
-  { id: 5, type: 'flood',     lon: 94.20, lat: 27.20, severity: 'HIGH',     title: 'Flood — Dibrugarh', detail: 'Rising water levels. Evacuation underway.' },
-  { id: 6, type: 'flood',     lon: 90.60, lat: 26.10, severity: 'MEDIUM',   title: 'Flood — Bongaigaon', detail: 'Minor flooding reported. Monitor conditions.' },
-  { id: 7, type: 'blocked',   lon: 92.78, lat: 27.48, severity: 'CRITICAL', title: 'Road Blocked — Tawang', detail: 'Sela Pass closed. Debris clearance: 48h estimate.' },
-  { id: 8, type: 'blocked',   lon: 93.50, lat: 24.80, severity: 'HIGH',     title: 'Road Blocked — Manipur', detail: 'NH-37 partially blocked due to rockfall.' },
-];
+const INCIDENTS = []; // Completely real-time now
 
 const SEVERITY_COLOR = {
   CRITICAL: '#ef4444',
@@ -76,24 +69,7 @@ const MapComponent = ({ activeLayers }) => {
     // ── Landslide Zone Polygon Layer ────────────────────────────────────────
     const landslideZoneData = {
       type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          geometry: {
-            type: 'Polygon',
-            coordinates: [[[92.0, 26.8], [93.2, 26.8], [93.2, 27.6], [92.0, 27.6], [92.0, 26.8]]]
-          },
-          properties: { label: 'High Landslide Zone' }
-        },
-        {
-          type: 'Feature',
-          geometry: {
-            type: 'Polygon',
-            coordinates: [[[91.4, 25.1], [92.4, 25.1], [92.4, 25.9], [91.4, 25.9], [91.4, 25.1]]]
-          },
-          properties: { label: 'Meghalaya Risk Zone' }
-        }
-      ]
+      features: []
     };
 
     const landslideLayer = new VectorLayer({
@@ -112,15 +88,7 @@ const MapComponent = ({ activeLayers }) => {
     // ── Flood Path Layer ────────────────────────────────────────────────────
     const floodData = {
       type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          geometry: {
-            type: 'LineString',
-            coordinates: [[96.0, 28.0], [95.5, 27.8], [94.5, 27.2], [93.5, 26.8], [92.5, 26.5], [91.0, 26.1], [89.9, 25.9]]
-          }
-        }
-      ]
+      features: []
     };
 
     const floodLayer = new VectorLayer({
@@ -150,32 +118,17 @@ const MapComponent = ({ activeLayers }) => {
     layersRef.current.blocked = blockedMarkers;
 
     // ── Monsoon Activity Layer (purple rainfall zone polygons) ─────────────
-    const monsoonData = {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          geometry: {
-            type: 'Polygon',
-            coordinates: [[[90.5, 25.0], [93.5, 25.0], [93.5, 27.0], [90.5, 27.0], [90.5, 25.0]]]
-          },
-          properties: { label: 'Heavy Rainfall — Assam & Meghalaya' }
-        },
-        {
-          type: 'Feature',
-          geometry: {
-            type: 'Polygon',
-            coordinates: [[[93.0, 27.0], [96.5, 27.0], [96.5, 29.0], [93.0, 29.0], [93.0, 27.0]]]
-          },
-          properties: { label: 'Active Monsoon — Arunachal Pradesh' }
-        }
-      ]
-    };
+    const monsoonSource = new VectorSource();
+    fetch('http://localhost:8000/api/geojson/weather')
+      .then(res => res.json())
+      .then(data => {
+        const features = new GeoJSON().readFeatures(data, { featureProjection: 'EPSG:3857' });
+        monsoonSource.addFeatures(features);
+      })
+      .catch(err => console.error('Failed to fetch live IMD weather:', err));
 
     const monsoonLayer = new VectorLayer({
-      source: new VectorSource({
-        features: new GeoJSON().readFeatures(monsoonData, { featureProjection: 'EPSG:3857' })
-      }),
+      source: monsoonSource,
       style: new Style({
         fill:   new Fill({ color: 'rgba(139, 92, 246, 0.15)' }),
         stroke: new Stroke({ color: 'rgba(139, 92, 246, 0.6)', width: 2, lineDash: [8, 5] })
@@ -184,6 +137,42 @@ const MapComponent = ({ activeLayers }) => {
       zIndex: 3,
     });
     layersRef.current.monsoon = monsoonLayer;
+
+    // ── NDMA CAP Alerts Layer ──────────────────────────────────────────────
+    const alertsSource = new VectorSource();
+    fetch('http://localhost:8000/api/geojson/alerts')
+      .then(res => res.json())
+      .then(data => {
+        const features = new GeoJSON().readFeatures(data, { featureProjection: 'EPSG:3857' });
+        // Map geojson properties to match the incident format for the popup
+        features.forEach(f => {
+            f.set('incident', {
+                type: 'blocked',
+                title: f.get('headline'),
+                severity: f.get('severity') === 'Extreme' ? 'CRITICAL' : 'HIGH',
+                detail: 'Source: ' + f.get('source')
+            });
+        });
+        alertsSource.addFeatures(features);
+      })
+      .catch(err => console.error('Failed to fetch live NDMA alerts:', err));
+
+    const alertsLayer = new VectorLayer({
+      source: alertsSource,
+      style: new Style({
+        image: new CircleStyle({
+          radius: 10,
+          fill: new Fill({ color: '#ef4444' }),
+          stroke: new Stroke({ color: '#fff', width: 2 })
+        }),
+        text: new TextStyle({
+          text: '🚨',
+          offsetY: -20,
+          font: '14px sans-serif'
+        })
+      }),
+      zIndex: 11,
+    });
 
     // ── NER State Borders ───────────────────────────────────────────────────
     const nerExtent = transformExtent([89.6, 21.8, 97.5, 29.5], 'EPSG:4326', 'EPSG:3857');
@@ -223,7 +212,7 @@ const MapComponent = ({ activeLayers }) => {
     // ── Initialize Map ──────────────────────────────────────────────────────
     const initialMap = new Map({
       target: mapElement.current,
-      layers: [baseLayer, landslideLayer, floodLayer, monsoonLayer, borderLayer, landslideMarkers, floodMarkers, blockedMarkers],
+      layers: [baseLayer, landslideLayer, floodLayer, monsoonLayer, borderLayer, landslideMarkers, floodMarkers, blockedMarkers, alertsLayer],
       overlays: [overlay],
       view: new View({
         center:   fromLonLat([93.0, 26.0]),
@@ -232,7 +221,11 @@ const MapComponent = ({ activeLayers }) => {
         extent:   nerExtent,
         showFullExtent: true,
       }),
-      controls: [],
+      interactions: defaultInteractions({
+        dragPan: true,
+        pinchZoom: true,
+        mouseWheelZoom: true,
+      }),
     });
 
     // ── Click → Popup ───────────────────────────────────────────────────────
@@ -382,11 +375,11 @@ const MapComponent = ({ activeLayers }) => {
       }}>
         <div style={{ fontWeight: '700', marginBottom: '8px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Legend</div>
         {[
-          { color: '#ef4444', label: 'Critical Risk' },
-          { color: '#f59e0b', label: 'High Risk / Landslide', dashed: true },
-          { color: '#3b82f6', label: 'Flood Path' },
-          { color: '#ef4444', label: 'Blocked Road', icon: '🚧' },
-          { color: 'rgba(139,92,246,0.5)', label: 'Monsoon Zone', dashed: true },
+          { color: '#ef4444', label: 'NDMA Alert (Critical)' },
+          { color: '#f59e0b', label: 'NDMA Alert (High)', dashed: true },
+          { color: '#3b82f6', label: 'Flood Risk Path' },
+          { color: '#ef4444', label: 'Blocked Road / Landslide', icon: '🚧' },
+          { color: 'rgba(139,92,246,0.5)', label: 'Heavy Rain Warning (Live)', dashed: true },
         ].map(l => (
           <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
             <div style={{
@@ -404,12 +397,12 @@ const MapComponent = ({ activeLayers }) => {
           <div style={{
             background: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(12px)',
             border: `1px solid ${SEVERITY_COLOR[popupContent.severity]}55`,
-            borderRadius: '10px', padding: '12px 16px', minWidth: '220px',
+            borderRadius: '10px', padding: '12px 16px', minWidth: '220px', maxWidth: '320px',
             boxShadow: `0 0 20px ${SEVERITY_COLOR[popupContent.severity]}33`,
             color: '#e2e8f0', fontSize: '0.8rem', position: 'relative',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-              <strong style={{ color: '#f1f5f9', fontSize: '0.85rem' }}>
+              <strong style={{ color: '#f1f5f9', fontSize: '0.85rem', wordBreak: 'break-word', paddingRight: '12px' }}>
                 {TYPE_EMOJI[popupContent.type]} {popupContent.title}
               </strong>
               <span style={{
