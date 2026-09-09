@@ -13,69 +13,12 @@ NER_BOUNDS = {
 }
 
 def generate_mock_weather_geojson() -> Dict[str, Any]:
-    """Generates mock weather GeoJSON for NER region when API fails or is unavailable."""
-    features = []
-    
-    # Generate some random mock polygons for weather warnings
-    for i in range(5):
-        lat = random.uniform(NER_BOUNDS["min_lat"], NER_BOUNDS["max_lat"])
-        lon = random.uniform(NER_BOUNDS["min_lon"], NER_BOUNDS["max_lon"])
-        
-        feature = {
-            "type": "Feature",
-            "properties": {
-                "id": f"weather-{i}",
-                "type": random.choice(["Heavy Rain", "Thunderstorm", "Flash Flood Watch"]),
-                "severity": random.choice(["Moderate", "Severe", "Extreme"]),
-                "source": "IMD (Mock)",
-                "rainfall_mm": random.randint(50, 200)
-            },
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [[
-                    [lon - 0.2, lat - 0.2],
-                    [lon + 0.2, lat - 0.2],
-                    [lon + 0.2, lat + 0.2],
-                    [lon - 0.2, lat + 0.2],
-                    [lon - 0.2, lat - 0.2]
-                ]]
-            }
-        }
-        features.append(feature)
-        
-    return {
-        "type": "FeatureCollection",
-        "features": features
-    }
+    """Returns empty GeoJSON when API is unavailable."""
+    return {"type": "FeatureCollection", "features": []}
 
 def generate_mock_alert_geojson() -> Dict[str, Any]:
-    """Generates mock NDMA CAP alert GeoJSON for NER region."""
-    features = []
-    
-    # Generate some random mock points for incidents
-    for i in range(3):
-        lat = random.uniform(NER_BOUNDS["min_lat"], NER_BOUNDS["max_lat"])
-        lon = random.uniform(NER_BOUNDS["min_lon"], NER_BOUNDS["max_lon"])
-        
-        feature = {
-            "type": "Feature",
-            "properties": {
-                "id": f"alert-{i}",
-                "headline": random.choice(["Landslide warning along NH", "Bridge structurally compromised", "Road blocked by debris"]),
-                "severity": random.choice(["Extreme", "Severe"]),
-                "source": "NDMA CAP (Mock)"
-            },
-            "geometry": {
-                "type": "Point",
-                "coordinates": [lon, lat]
-            }
-        }
-        features.append(feature)
-        
-    return {
-        "type": "FeatureCollection",
-        "features": features
-    }
+    """Returns empty GeoJSON when API is unavailable."""
+    return {"type": "FeatureCollection", "features": []}
 
 NER_CITIES = [
     {"name": "Guwahati, Assam", "lat": 26.1445, "lon": 91.7362},
@@ -183,7 +126,7 @@ def fetch_ndma_alerts_geojson() -> Dict[str, Any]:
             if url in ndma_cache and ndma_cache[url].get('etag'):
                 headers['If-None-Match'] = ndma_cache[url]['etag']
                 
-            response = requests.get(url, headers=headers, timeout=5)
+            response = requests.get(url, headers=headers, timeout=2)
             
             if response.status_code == 304:
                 # Use cached XML

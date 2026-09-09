@@ -5,7 +5,6 @@ import Map from 'ol/Map';
 import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
-import XYZ from 'ol/source/XYZ';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import GeoJSON from 'ol/format/GeoJSON';
@@ -16,108 +15,70 @@ import { fromLonLat, transformExtent } from 'ol/proj';
 import Overlay from 'ol/Overlay';
 import useStore from '../../store/useStore';
 
-// ── Risk Incident Data ────────────────────────────────────────────────────────
-const INCIDENTS = []; // Completely real-time now
-
 const SEVERITY_COLOR = {
   CRITICAL: '#ef4444',
   HIGH:     '#f59e0b',
   MEDIUM:   '#3b82f6',
 };
 
-const TYPE_EMOJI = {
-  landslide: '⛰️',
-  flood:     '🌊',
-  blocked:   '🚧',
+const FACILITY_EMOJI = {
+  Hospital: '🏥',
+  'Relief Camp': '⛺',
+  Warehouse: '🏭',
 };
 
-// ── Component ─────────────────────────────────────────────────────────────────
-const MapComponent = ({ activeLayers }) => {
-  const mapElement   = useRef(null);
-  const popupRef     = useRef(null);
+const MapComponent = ({ activeLayers = {} }) => {
+  const mapElement = useRef(null);
+  const popupRef = useRef(null);
   const [map, setMap] = useState(null);
-  const [popup, setPopup] = useState(null);
   const [popupContent, setPopupContent] = useState(null);
 
-  const layersRef = useRef({ landslide: null, flood: null, blocked: null, monsoon: null });
+  const layersRef = useRef({ 
+    landslide: null, 
+    flood: null, 
+    blocked: null, 
+    monsoon: null,
+    facilities: null,
+    vehicles: null,
+    route: null,
+    waypoints: null
+  });
 
-  // Build a styled point feature
-  const makeMarker = (inc) => {
-    const feat = new Feature({ geometry: new Point(fromLonLat([inc.lon, inc.lat])), incident: inc });
-    const color = SEVERITY_COLOR[inc.severity] || '#64748b';
-    feat.setStyle(
-      new Style({
-        image: new CircleStyle({
-          radius: inc.severity === 'CRITICAL' ? 11 : inc.severity === 'HIGH' ? 9 : 7,
-          fill:   new Fill({ color }),
-          stroke: new Stroke({ color: '#fff', width: 2 }),
-        }),
-        text: new TextStyle({
-          text: TYPE_EMOJI[inc.type],
-          offsetY: -20,
-          font: '14px sans-serif',
-        }),
-      })
-    );
-    return feat;
-  };
+  const { routes, selectedRouteIndex, routeWaypoints, facilities, vehicles, fetchFacilities } = useStore();
 
   useEffect(() => {
-    // ── Base Layer ──────────────────────────────────────────────────────────
+    fetchFacilities();
+  }, [fetchFacilities]);
+
+  useEffect(() => {
+    // Base Layer
     const baseLayer = new TileLayer({ source: new OSM() });
 
-    // ── Landslide Zone Polygon Layer ────────────────────────────────────────
-    const landslideZoneData = {
-      type: 'FeatureCollection',
-      features: []
-    };
-
-    const landslideLayer = new VectorLayer({
-      source: new VectorSource({
-        features: new GeoJSON().readFeatures(landslideZoneData, { featureProjection: 'EPSG:3857' })
-      }),
-      style: new Style({
-        fill:   new Fill({ color: 'rgba(245, 158, 11, 0.18)' }),
-        stroke: new Stroke({ color: 'rgba(245, 158, 11, 0.8)', width: 2, lineDash: [6, 4] })
-      }),
-      visible: activeLayers.landslide,
-      zIndex: 2,
+    // Incident / Hazard Marker Layer
+    const incidentsSource = new VectorSource();
+    const incidentsLayer = new VectorLayer({
+      source: incidentsSource,
+      zIndex: 10,
     });
-    layersRef.current.landslide = landslideLayer;
+    layersRef.current.blocked = incidentsLayer;
 
-    // ── Flood Path Layer ────────────────────────────────────────────────────
-    const floodData = {
-      type: 'FeatureCollection',
-      features: []
-    };
-
-    const floodLayer = new VectorLayer({
-      source: new VectorSource({
-        features: new GeoJSON().readFeatures(floodData, { featureProjection: 'EPSG:3857' })
-      }),
-      style: new Style({
-        stroke: new Stroke({ color: 'rgba(59,130,246,0.85)', width: 5, lineCap: 'round' })
-      }),
-      visible: activeLayers.flood,
-      zIndex: 2,
+    // Critical Facilities Layer
+    const facilitiesSource = new VectorSource();
+    const facilitiesLayer = new VectorLayer({
+      source: facilitiesSource,
+      zIndex: 12,
     });
-    layersRef.current.flood = floodLayer;
+    layersRef.current.facilities = facilitiesLayer;
 
-    // ── Incident Marker Layers ──────────────────────────────────────────────
-    const makeMarkerLayer = (type) => {
-      const features = INCIDENTS.filter(i => i.type === type).map(makeMarker);
-      return new VectorLayer({
-        source: new VectorSource({ features }),
-        zIndex: 10,
-      });
-    };
+    // Vehicles Layer (Live Telemetry)
+    const vehiclesSource = new VectorSource();
+    const vehiclesLayer = new VectorLayer({
+      source: vehiclesSource,
+      zIndex: 15,
+    });
+    layersRef.current.vehicles = vehiclesLayer;
 
-    const landslideMarkers = makeMarkerLayer('landslide');
-    const floodMarkers     = makeMarkerLayer('flood');
-    const blockedMarkers   = makeMarkerLayer('blocked');
-    layersRef.current.blocked = blockedMarkers;
-
-    // ── Monsoon Activity Layer (purple rainfall zone polygons) ─────────────
+    // Monsoon / IMD Layer
     const monsoonSource = new VectorSource();
     fetch('http://localhost:8000/api/geojson/weather')
       .then(res => res.json())
@@ -125,56 +86,20 @@ const MapComponent = ({ activeLayers }) => {
         const features = new GeoJSON().readFeatures(data, { featureProjection: 'EPSG:3857' });
         monsoonSource.addFeatures(features);
       })
-      .catch(err => console.error('Failed to fetch live IMD weather:', err));
+      .catch(() => {});
 
     const monsoonLayer = new VectorLayer({
       source: monsoonSource,
       style: new Style({
-        fill:   new Fill({ color: 'rgba(139, 92, 246, 0.15)' }),
+        fill: new Fill({ color: 'rgba(139, 92, 246, 0.15)' }),
         stroke: new Stroke({ color: 'rgba(139, 92, 246, 0.6)', width: 2, lineDash: [8, 5] })
       }),
-      visible: false,  // off by default
+      visible: false,
       zIndex: 3,
     });
     layersRef.current.monsoon = monsoonLayer;
 
-    // ── NDMA CAP Alerts Layer ──────────────────────────────────────────────
-    const alertsSource = new VectorSource();
-    fetch('http://localhost:8000/api/geojson/alerts')
-      .then(res => res.json())
-      .then(data => {
-        const features = new GeoJSON().readFeatures(data, { featureProjection: 'EPSG:3857' });
-        // Map geojson properties to match the incident format for the popup
-        features.forEach(f => {
-            f.set('incident', {
-                type: 'blocked',
-                title: f.get('headline'),
-                severity: f.get('severity') === 'Extreme' ? 'CRITICAL' : 'HIGH',
-                detail: 'Source: ' + f.get('source')
-            });
-        });
-        alertsSource.addFeatures(features);
-      })
-      .catch(err => console.error('Failed to fetch live NDMA alerts:', err));
-
-    const alertsLayer = new VectorLayer({
-      source: alertsSource,
-      style: new Style({
-        image: new CircleStyle({
-          radius: 10,
-          fill: new Fill({ color: '#ef4444' }),
-          stroke: new Stroke({ color: '#fff', width: 2 })
-        }),
-        text: new TextStyle({
-          text: '🚨',
-          offsetY: -20,
-          font: '14px sans-serif'
-        })
-      }),
-      zIndex: 11,
-    });
-
-    // ── NER State Borders ───────────────────────────────────────────────────
+    // State Borders
     const nerExtent = transformExtent([89.6, 21.8, 97.5, 29.5], 'EPSG:4326', 'EPSG:3857');
     const borderSource = new VectorSource();
     const nerStateNames = ['Arunachal Pradesh', 'Assam', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Sikkim', 'Tripura'];
@@ -190,35 +115,35 @@ const MapComponent = ({ activeLayers }) => {
           })
         );
       })
-      .catch(err => console.error('GeoJSON error:', err));
+      .catch(() => {});
 
     const borderLayer = new VectorLayer({
       source: borderSource,
       style: new Style({
-        stroke: new Stroke({ color: '#1e293b', width: 2.5 }),
-        fill:   new Fill({ color: 'rgba(15,23,42,0.05)' })
+        stroke: new Stroke({ color: '#334155', width: 2 }),
+        fill: new Fill({ color: 'rgba(15,23,42,0.05)' })
       }),
       zIndex: 1,
     });
 
-    // ── Popup Overlay ───────────────────────────────────────────────────────
+    // Popup Overlay
     const overlay = new Overlay({
-      element:    popupRef.current,
+      element: popupRef.current,
       positioning: 'bottom-center',
-      stopEvent:  true,
-      offset:     [0, -14],
+      stopEvent: true,
+      offset: [0, -14],
     });
 
-    // ── Initialize Map ──────────────────────────────────────────────────────
+    // Initialize Map
     const initialMap = new Map({
       target: mapElement.current,
-      layers: [baseLayer, landslideLayer, floodLayer, monsoonLayer, borderLayer, landslideMarkers, floodMarkers, blockedMarkers, alertsLayer],
+      layers: [baseLayer, monsoonLayer, borderLayer, incidentsLayer, facilitiesLayer, vehiclesLayer],
       overlays: [overlay],
       view: new View({
-        center:   fromLonLat([93.0, 26.0]),
-        zoom:     6.5,
-        minZoom:  6,
-        extent:   nerExtent,
+        center: fromLonLat([93.0, 26.0]),
+        zoom: 6.5,
+        minZoom: 5.5,
+        extent: nerExtent,
         showFullExtent: true,
       }),
       interactions: defaultInteractions({
@@ -228,167 +153,216 @@ const MapComponent = ({ activeLayers }) => {
       }),
     });
 
-    // ── Click → Popup ───────────────────────────────────────────────────────
     initialMap.on('click', (evt) => {
       const feature = initialMap.forEachFeatureAtPixel(evt.pixel, f => f, { hitTolerance: 8 });
-      if (feature && feature.get('incident')) {
-        const inc = feature.get('incident');
+      if (feature && feature.get('details')) {
         overlay.setPosition(evt.coordinate);
-        setPopupContent(inc);
+        setPopupContent(feature.get('details'));
       } else {
         overlay.setPosition(undefined);
         setPopupContent(null);
       }
     });
 
-    // Pointer cursor on hover
     initialMap.on('pointermove', (evt) => {
       const hit = initialMap.hasFeatureAtPixel(evt.pixel, { hitTolerance: 8 });
       initialMap.getTargetElement().style.cursor = hit ? 'pointer' : '';
     });
 
     setMap(initialMap);
-    setPopup(overlay);
-
     return () => initialMap.setTarget(null);
   }, []);
 
-  // Sync layer visibility
+  // Sync Facility Markers
   useEffect(() => {
-    if (!map) return;
-    if (layersRef.current.landslide) layersRef.current.landslide.setVisible(activeLayers.landslide);
-    if (layersRef.current.flood)     layersRef.current.flood.setVisible(activeLayers.flood);
-    if (layersRef.current.blocked)   layersRef.current.blocked.setVisible(activeLayers.blocked ?? true);
-    if (layersRef.current.monsoon)   layersRef.current.monsoon.setVisible(activeLayers.monsoon ?? false);
-  }, [activeLayers, map]);
+    if (!map || !layersRef.current.facilities) return;
+    const source = layersRef.current.facilities.getSource();
+    source.clear();
 
-  // Sync All Routes
+    (facilities || []).forEach(fac => {
+      if (!fac.lat || !fac.lon) return;
+      const feat = new Feature({
+        geometry: new Point(fromLonLat([fac.lon, fac.lat])),
+        details: {
+          title: `${FACILITY_EMOJI[fac.type] || '🏥'} ${fac.name}`,
+          severity: fac.accessibility === 'Open' ? 'MEDIUM' : 'CRITICAL',
+          detail: `Type: ${fac.type} | District: ${fac.district} | Access: ${fac.accessibility}`
+        }
+      });
+      feat.setStyle(new Style({
+        image: new CircleStyle({
+          radius: 10,
+          fill: new Fill({ color: fac.accessibility === 'Open' ? '#10b981' : '#ef4444' }),
+          stroke: new Stroke({ color: '#fff', width: 2 })
+        }),
+        text: new TextStyle({
+          text: FACILITY_EMOJI[fac.type] || '🏥',
+          offsetY: -18,
+          font: '13px sans-serif'
+        })
+      }));
+      source.addFeature(feat);
+    });
+
+    layersRef.current.facilities.setVisible(activeLayers.facilities ?? true);
+  }, [map, facilities, activeLayers.facilities]);
+
+  // Sync Vehicle Markers
+  useEffect(() => {
+    if (!map || !layersRef.current.vehicles) return;
+    const source = layersRef.current.vehicles.getSource();
+    source.clear();
+
+    (vehicles || []).forEach(v => {
+      if (!v.lat || !v.lon) return;
+      const feat = new Feature({
+        geometry: new Point(fromLonLat([v.lon, v.lat])),
+        details: {
+          title: `🚚 ${v.id} (${v.driver})`,
+          severity: v.risk === 'High' ? 'CRITICAL' : 'MEDIUM',
+          detail: `Cargo: ${v.cargo} | Location: ${v.location} | Speed: ${v.speed || 35} km/h (SIMULATED GPS)`
+        }
+      });
+      feat.setStyle(new Style({
+        image: new CircleStyle({
+          radius: 9,
+          fill: new Fill({ color: '#3b82f6' }),
+          stroke: new Stroke({ color: '#fff', width: 2 })
+        }),
+        text: new TextStyle({
+          text: `🚛 ${v.id}`,
+          offsetY: -18,
+          font: 'bold 11px sans-serif',
+          fill: new Fill({ color: '#60a5fa' })
+        })
+      }));
+      source.addFeature(feat);
+    });
+  }, [map, vehicles]);
+
+  // Sync Calculated Safe Routes & Waypoints onto Map
   useEffect(() => {
     if (!map) return;
-    
-    // Remove existing route layer if any
+
+    // Clear old route layer if present
     if (layersRef.current.route) {
       map.removeLayer(layersRef.current.route);
       layersRef.current.route = null;
     }
-    // Remove existing waypoints layer if any
+    // Clear old waypoints layer if present
     if (layersRef.current.waypoints) {
       map.removeLayer(layersRef.current.waypoints);
       layersRef.current.waypoints = null;
     }
 
-    const { routes, selectedRouteIndex, routeWaypoints } = useStore.getState();
-
     if (routes && routes.length > 0) {
       const routeFeatures = routes.map((route, idx) => {
         const isSelected = idx === selectedRouteIndex;
-        const feature = new Feature({ geometry: new GeoJSON().readGeometry(route.geojson, { featureProjection: 'EPSG:3857' }) });
-        
-        let color = '#94a3b8'; // Default slate
-        if (route.risk === 'Low') color = '#10b981'; // Emerald
-        if (route.risk === 'Medium') color = '#f59e0b'; // Amber
-        if (route.risk === 'High') color = '#ef4444'; // Red
+        const feature = new Feature({
+          geometry: new GeoJSON().readGeometry(route.geojson, { featureProjection: 'EPSG:3857' })
+        });
+
+        let color = '#3b82f6';
+        if (route.risk === 'Low') color = '#10b981';
+        if (route.risk === 'Medium') color = '#f59e0b';
+        if (route.risk === 'High') color = '#ef4444';
 
         feature.setStyle(new Style({
           stroke: new Stroke({
-            color: isSelected ? color : color + '80', // Add transparency if not selected
-            width: isSelected ? 6 : 4,
-            lineDash: isSelected ? undefined : [10, 10]
+            color: isSelected ? color : color + '77',
+            width: isSelected ? 7 : 4,
+            lineDash: isSelected ? undefined : [8, 8]
           })
         }));
-        
-        // Ensure selected route renders on top
-        if (isSelected) {
-          feature.set('zIndex', 10);
-        } else {
-          feature.set('zIndex', 1);
-        }
-        
+
+        feature.set('zIndex', isSelected ? 100 : 10);
         return feature;
       });
-      
-      // Sort features so zIndex works properly within the source
-      routeFeatures.sort((a, b) => (a.get('zIndex') || 0) - (b.get('zIndex') || 0));
 
       const routeSource = new VectorSource({ features: routeFeatures });
-
       const routeLayer = new VectorLayer({
         source: routeSource,
-        zIndex: 20, // Render on top of map
+        zIndex: 50
       });
 
       map.addLayer(routeLayer);
       layersRef.current.route = routeLayer;
 
-      // Add waypoints
+      // Add Waypoint markers (A -> Stops -> B)
       if (routeWaypoints && routeWaypoints.length > 0) {
         const wpFeatures = routeWaypoints.map((wp, i) => {
           const isOrigin = i === 0;
           const isDest = i === routeWaypoints.length - 1;
-          const label = isOrigin ? 'A' : isDest ? 'B' : `${i}`;
+          const label = isOrigin ? 'ORIGIN (A)' : isDest ? 'DEST (B)' : `STOP ${i}`;
           
-          const feature = new Feature({ geometry: new Point(fromLonLat([wp.lon, wp.lat])) });
-          feature.setStyle(
-            new Style({
-              image: new CircleStyle({
-                radius: 12,
-                fill: new Fill({ color: isOrigin ? '#10b981' : isDest ? '#ef4444' : '#f59e0b' }),
-                stroke: new Stroke({ color: '#fff', width: 2 }),
-              }),
-              text: new TextStyle({
-                text: label,
-                fill: new Fill({ color: '#fff' }),
-                font: 'bold 12px sans-serif'
-              })
+          const feature = new Feature({
+            geometry: new Point(fromLonLat([wp.lon, wp.lat])),
+            details: {
+              title: label,
+              severity: 'MEDIUM',
+              detail: wp.name
+            }
+          });
+          feature.setStyle(new Style({
+            image: new CircleStyle({
+              radius: 12,
+              fill: new Fill({ color: isOrigin ? '#10b981' : isDest ? '#ef4444' : '#f59e0b' }),
+              stroke: new Stroke({ color: '#ffffff', width: 3 }),
+            }),
+            text: new TextStyle({
+              text: isOrigin ? 'A' : isDest ? 'B' : `${i}`,
+              fill: new Fill({ color: '#ffffff' }),
+              font: 'bold 12px sans-serif'
             })
-          );
+          }));
           return feature;
         });
 
         const wpLayer = new VectorLayer({
           source: new VectorSource({ features: wpFeatures }),
-          zIndex: 21
+          zIndex: 55
         });
         map.addLayer(wpLayer);
         layersRef.current.waypoints = wpLayer;
       }
 
-      // Fit map to route extent
-      map.getView().fit(routeSource.getExtent(), {
-        padding: [50, 50, 50, 50],
-        duration: 1000
-      });
+      // Auto-fit view to route extent
+      try {
+        const extent = routeSource.getExtent();
+        if (extent && !extent.includes(Infinity)) {
+          map.getView().fit(extent, {
+            padding: [60, 60, 60, 60],
+            duration: 1000
+          });
+        }
+      } catch (err) {
+        console.warn('Map fit extent error:', err);
+      }
     }
-  }, [map, useStore(state => state.routes), useStore(state => state.selectedRouteIndex)]); // Subscribe to route changes
+  }, [map, routes, selectedRouteIndex, routeWaypoints]);
 
   return (
     <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-      {/* Map canvas */}
       <div ref={mapElement} style={{ width: '100%', height: '100%' }} />
 
       {/* Map Legend */}
       <div style={{
         position: 'absolute', bottom: '16px', left: '16px',
-        background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(8px)',
+        background: 'rgba(15,23,42,0.88)', backdropFilter: 'blur(8px)',
         border: '1px solid #334155', borderRadius: '10px', padding: '12px 16px',
         color: '#e2e8f0', fontSize: '0.75rem', zIndex: 100,
       }}>
-        <div style={{ fontWeight: '700', marginBottom: '8px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Legend</div>
-        {[
-          { color: '#ef4444', label: 'NDMA Alert (Critical)' },
-          { color: '#f59e0b', label: 'NDMA Alert (High)', dashed: true },
-          { color: '#3b82f6', label: 'Flood Risk Path' },
-          { color: '#ef4444', label: 'Blocked Road / Landslide', icon: '🚧' },
-          { color: 'rgba(139,92,246,0.5)', label: 'Heavy Rain Warning (Live)', dashed: true },
-        ].map(l => (
-          <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <div style={{
-              width: '12px', height: '12px', borderRadius: l.dashed ? '2px' : '50%',
-              background: l.color, border: l.dashed ? `2px dashed ${l.color}` : 'none', flexShrink: 0,
-            }} />
-            {l.label}
-          </div>
-        ))}
+        <div style={{ fontWeight: '700', marginBottom: '6px', color: '#94a3b8', textTransform: 'uppercase' }}>
+          NER Layer Legend
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div>🏥 Hospital / Facility (Open / Impaired)</div>
+          <div>🚚 Live Fleet Truck (SIMULATED GPS)</div>
+          <div>🚨 Active Incident / Hazard Zone</div>
+          {routes && routes.length > 0 && (
+            <div style={{ color: '#10b981', fontWeight: 'bold' }}>🛣️ Active Safe Route Calculated</div>
+          )}
+        </div>
       </div>
 
       {/* Popup */}
@@ -396,26 +370,15 @@ const MapComponent = ({ activeLayers }) => {
         {popupContent && (
           <div style={{
             background: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(12px)',
-            border: `1px solid ${SEVERITY_COLOR[popupContent.severity]}55`,
+            border: `1px solid ${SEVERITY_COLOR[popupContent.severity] || '#3b82f6'}55`,
             borderRadius: '10px', padding: '12px 16px', minWidth: '220px', maxWidth: '320px',
-            boxShadow: `0 0 20px ${SEVERITY_COLOR[popupContent.severity]}33`,
+            boxShadow: '0 0 20px rgba(0,0,0,0.5)',
             color: '#e2e8f0', fontSize: '0.8rem', position: 'relative',
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-              <strong style={{ color: '#f1f5f9', fontSize: '0.85rem', wordBreak: 'break-word', paddingRight: '12px' }}>
-                {TYPE_EMOJI[popupContent.type]} {popupContent.title}
-              </strong>
-              <span style={{
-                background: SEVERITY_COLOR[popupContent.severity] + '22',
-                color:  SEVERITY_COLOR[popupContent.severity],
-                border: `1px solid ${SEVERITY_COLOR[popupContent.severity]}44`,
-                padding: '1px 8px', borderRadius: '99px', fontSize: '0.7rem',
-                fontWeight: '700', marginLeft: '8px', whiteSpace: 'nowrap',
-              }}>
-                {popupContent.severity}
-              </span>
-            </div>
-            <p style={{ color: '#94a3b8', lineHeight: '1.5', margin: 0 }}>{popupContent.detail}</p>
+            <strong style={{ color: '#f1f5f9', fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>
+              {popupContent.title}
+            </strong>
+            <p style={{ color: '#94a3b8', lineHeight: '1.4', margin: 0 }}>{popupContent.detail}</p>
           </div>
         )}
       </div>

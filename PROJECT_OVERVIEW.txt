@@ -1,0 +1,127 @@
+================================================================================
+                    NEXUS-NER : PROJECT OVERVIEW & STATUS REPORT
+================================================================================
+Generated: September 9, 2026
+
+1. EXECUTIVE SUMMARY
+--------------------------------------------------------------------------------
+NEXUS-NER is an AI-powered Emergency Logistics, Disaster Response & Safe Route 
+Planning system. Built for disaster management authorities and fleet operations 
+managers, the platform provides real-time hazard monitoring, AI-optimized safe 
+route calculation, live NDMA/IMD disaster feed integration, and direct fleet 
+vehicle dispatching.
+
+
+2. SYSTEM ARCHITECTURE
+--------------------------------------------------------------------------------
+FRONTEND:
+  - Framework: React 19 + Vite 8
+  - Styling: Tailwind CSS 3.4
+  - State Management: Zustand 5
+  - Mapping Engine: OpenLayers 10
+  - Icons & UI: Lucide React, Recharts, Framer Motion
+  - Router: React Router DOM v7
+
+BACKEND:
+  - Framework: Python FastAPI
+  - ORM / DB: SQLAlchemy with SQLite (sih_hackathon.db)
+  - Data Validation: Pydantic schemas
+  - External Integrations: Live IMD Weather GeoJSON & NDMA CAP Alerts GeoJSON
+  - Routing Engine: OSRM (Open Source Routing Machine) API & OSM Nominatim
+
+
+3. CORE FEATURES & MODULES
+--------------------------------------------------------------------------------
+[1] DASHBOARD (/)
+    - Interactive OpenLayers map with dynamic hazard layer toggling 
+      (Landslide, Flood, Blocked Roads, Monsoon).
+    - Live incident counters, active fleet statistics, and risk summaries.
+    - Quick actions for emergency response routing.
+
+[2] ROUTE PLANNER & DISPATCH (/route-planner)
+    - Transport Mode Selection (Car, Bike, Delivery Van, Heavy Truck).
+    - Fleet Vehicle Assignment: Pick idle fleet vehicles for route assignment.
+    - Geocoding & Multi-stop Routing via OpenStreetMap Nominatim and OSRM.
+    - Intermediate stops duration & hazard risk scoring (Low, Medium, High).
+    - ONE-CLICK DISPATCH: Updates vehicle status to "In Transit", assigns 
+      route location (Origin -> Destination), and updates estimated ETA both 
+      in local state and backend SQLite database.
+    - Visual feedback toast banner with direct navigation to Fleet Operations.
+
+[3] FLEET OPERATIONS (/vehicles)
+    - Complete fleet management table showing Vehicle ID, Driver, Type, 
+      Cargo, Current Location, Status, ETA, Risk score, and Last Update.
+    - Vehicle Statuses: In Transit, Idle, Delivering, Maintenance.
+    - Real-time status update capabilities synced with backend.
+
+[4] INCIDENTS MANAGEMENT (/incidents)
+    - Centralized disaster incident feed.
+    - Integrates static database incidents with real-time live NDMA CAP 
+      feeds (headline, severity, coordinates).
+    - Incident status management (Active, Responding, Under Investigation, Resolved).
+
+[5] AI RISK ANALYTICS (/analytics)
+    - Risk score calculations based on weather, terrain, and incident density.
+    - Breakdown visualizers for disaster response decision support.
+
+
+4. CURRENT PROJECT STATUS
+--------------------------------------------------------------------------------
+STATUS: FULLY OPERATIONAL & READY FOR TESTING
+
+Running Services:
+  - Backend API:  http://127.0.0.1:8000  (FastAPI process running via Uvicorn)
+  - Frontend:     http://localhost:5173  (Vite Dev Server running)
+
+Recent Milestones Completed:
+  [x] Route Planner view completed with vehicle assignment selector.
+  [x] Backend schema & main.py updated to store 'eta' and 'location' on PATCH /api/vehicles/{id}.
+  [x] Zustand store updated to optimistically update vehicle details upon dispatch.
+  [x] Frontend production build verified (0 errors).
+  [x] Python backend compilation verified (0 errors).
+
+
+5. PROJECT DIRECTORY STRUCTURE
+--------------------------------------------------------------------------------
+SIH HACKATHON/
+│
+├── backend/
+│   ├── main.py               # FastAPI endpoints & route handlers
+│   ├── models.py             # SQLAlchemy DB Models (Vehicle, Incident)
+│   ├── schemas.py            # Pydantic data validation schemas
+│   ├── database.py           # DB connection setup
+│   ├── external_services.py  # IMD weather & NDMA CAP live feeds parser
+│   ├── seed.py               # Database initial seed script
+│   └── sih_hackathon.db      # SQLite database file
+│
+├── src/
+│   ├── components/
+│   │   ├── layout/Layout.jsx # Main navigation sidebar & layout wrapper
+│   │   └── map/MapComponent.jsx # OpenLayers map container & hazard overlays
+│   │
+│   ├── pages/
+│   │   ├── Dashboard.jsx     # Command center overview
+│   │   ├── RoutePlanner.jsx  # AI route planning & vehicle dispatch
+│   │   ├── Vehicles.jsx      # Fleet operations overview
+│   │   ├── Incidents.jsx     # Incident response feed
+│   │   └── Analytics.jsx     # AI risk prediction breakdown
+│   │
+│   ├── store/
+│   │   └── useStore.js       # Global Zustand state management
+│   │
+│   ├── App.jsx               # React Router configuration
+│   └── index.css             # Tailwind CSS styles
+│
+├── PROJECT_OVERVIEW.txt      # This overview & status report
+├── package.json              # Frontend dependencies and scripts
+└── vite.config.js            # Vite bundler configuration
+
+
+6. NEXT RECOMMENDED DEVELOPMENTS
+--------------------------------------------------------------------------------
+1. Live GPS Vehicle Simulation: Animate vehicle movement on map routes.
+2. Dynamic Reroute Warnings: Trigger alerts when new hazards block an active route.
+3. Driver Mobile Interface / SMS Notifications: Push dispatch alerts to drivers.
+4. Export Reports: Generate PDF/CSV dispatch and incident logs.
+
+================================================================================
