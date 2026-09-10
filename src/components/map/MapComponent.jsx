@@ -226,14 +226,14 @@ const MapComponent = ({ activeLayers = {} }) => {
       feat.setStyle(new Style({
         image: new CircleStyle({
           radius: 9,
-          fill: new Fill({ color: '#3b82f6' }),
+          fill: new Fill({ color: '#dc2626' }),
           stroke: new Stroke({ color: '#fff', width: 2 })
         }),
         text: new TextStyle({
           text: `🚛 ${v.id}`,
           offsetY: -18,
           font: 'bold 11px sans-serif',
-          fill: new Fill({ color: '#60a5fa' })
+          fill: new Fill({ color: '#b91c1c' })
         })
       }));
       source.addFeature(feat);
@@ -262,7 +262,7 @@ const MapComponent = ({ activeLayers = {} }) => {
           geometry: new GeoJSON().readGeometry(route.geojson, { featureProjection: 'EPSG:3857' })
         });
 
-        let color = '#3b82f6';
+        let color = '#dc2626';
         if (route.risk === 'Low') color = '#10b981';
         if (route.risk === 'Medium') color = '#f59e0b';
         if (route.risk === 'High') color = '#ef4444';
@@ -348,14 +348,14 @@ const MapComponent = ({ activeLayers = {} }) => {
       {/* Map Legend */}
       <div style={{
         position: 'absolute', bottom: '16px', left: '16px',
-        background: 'rgba(15,23,42,0.88)', backdropFilter: 'blur(8px)',
-        border: '1px solid #334155', borderRadius: '10px', padding: '12px 16px',
-        color: '#e2e8f0', fontSize: '0.75rem', zIndex: 100,
+        background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(8px)',
+        border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 16px',
+        color: '#0f172a', fontSize: '0.75rem', zIndex: 100, boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
       }}>
-        <div style={{ fontWeight: '700', marginBottom: '6px', color: '#94a3b8', textTransform: 'uppercase' }}>
-          NER Layer Legend
+        <div style={{ fontWeight: '800', marginBottom: '6px', color: '#dc2626', textTransform: 'uppercase' }}>
+          RightRoute Layer Legend
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontWeight: '500' }}>
           <div>🏥 Hospital / Facility (Open / Impaired)</div>
           <div>🚚 Live Fleet Truck (SIMULATED GPS)</div>
           <div>🚨 Active Incident / Hazard Zone</div>
@@ -369,16 +369,16 @@ const MapComponent = ({ activeLayers = {} }) => {
       <div ref={popupRef}>
         {popupContent && (
           <div style={{
-            background: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(12px)',
-            border: `1px solid ${SEVERITY_COLOR[popupContent.severity] || '#3b82f6'}55`,
+            background: 'rgba(255, 255, 255, 0.98)', backdropFilter: 'blur(12px)',
+            border: `1px solid ${SEVERITY_COLOR[popupContent.severity] || '#dc2626'}`,
             borderRadius: '10px', padding: '12px 16px', minWidth: '220px', maxWidth: '320px',
-            boxShadow: '0 0 20px rgba(0,0,0,0.5)',
-            color: '#e2e8f0', fontSize: '0.8rem', position: 'relative',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+            color: '#0f172a', fontSize: '0.8rem', position: 'relative',
           }}>
-            <strong style={{ color: '#f1f5f9', fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>
+            <strong style={{ color: '#0f172a', fontSize: '0.85rem', display: 'block', marginBottom: '4px' }}>
               {popupContent.title}
             </strong>
-            <p style={{ color: '#94a3b8', lineHeight: '1.4', margin: 0 }}>{popupContent.detail}</p>
+            <p style={{ color: '#475569', lineHeight: '1.4', margin: 0 }}>{popupContent.detail}</p>
           </div>
         )}
       </div>

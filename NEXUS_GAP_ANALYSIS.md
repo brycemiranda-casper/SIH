@@ -1,7 +1,7 @@
-# NEXUS-NER — GAP ANALYSIS & MASTER IMPLEMENTATION PLAN
+# RightRoute — GAP ANALYSIS & MASTER IMPLEMENTATION PLAN
 
 ## Executive Summary
-This document provides a comprehensive audit of the existing NEXUS-NER codebase against the MDoNER (Ministry of Development of North Eastern Region) Smart Logistics and Accessibility Intelligence Platform specifications. It outlines the missing capabilities, current implementation state, priorities, and step-by-step roadmap to transform NEXUS-NER into a production-grade prototype.
+This document provides a comprehensive audit of the existing RightRoute codebase against the MDoNER (Ministry of Development of North Eastern Region) Smart Logistics and Accessibility Intelligence Platform specifications. It outlines the missing capabilities, current implementation state, priorities, and step-by-step roadmap to transform RightRoute into a production-grade prototype.
 
 ---
 

@@ -19,9 +19,9 @@ export default function Districts() {
   });
 
   const getScoreBadge = (score) => {
-    if (score >= 80) return { label: 'HEALTHY', bg: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' };
-    if (score >= 60) return { label: 'MODERATE', bg: 'bg-amber-500/20 text-amber-400 border-amber-500/30' };
-    return { label: 'CRITICAL HAZARD', bg: 'bg-red-500/20 text-red-400 border-red-500/30' };
+    if (score >= 80) return { label: 'HEALTHY', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+    if (score >= 60) return { label: 'MODERATE', bg: 'bg-amber-50 text-amber-700 border-amber-200' };
+    return { label: 'CRITICAL HAZARD', bg: 'bg-red-50 text-red-700 border-red-200 font-bold' };
   };
 
   return (
@@ -29,11 +29,11 @@ export default function Districts() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-100 flex items-center gap-2.5">
-            <Building2 className="text-blue-400" />
-            District Accessibility Intelligence (NER 8-State)
+          <h1 className="text-2xl font-black text-stone-900 flex items-center gap-2.5">
+            <Building2 className="text-red-600" />
+            District Accessibility Intelligence
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-stone-500 mt-1 font-medium">
             Real-time accessibility scoring (0-100), active corridor bottlenecks, and risk levels across all North Eastern districts.
           </p>
         </div>
@@ -44,10 +44,10 @@ export default function Districts() {
             <button
               key={state}
               onClick={() => setSelectedState(state)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
                 selectedState === state
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700'
+                  ? 'bg-red-600 text-white'
+                  : 'bg-white text-stone-600 hover:text-stone-900 border border-stone-200'
               }`}
             >
               {state}
@@ -63,11 +63,11 @@ export default function Districts() {
           return (
             <div
               key={dist.id}
-              className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-4 flex flex-col justify-between hover:border-blue-500/50 transition-all shadow-md group"
+              className="bg-white border border-stone-200 rounded-xl p-4 flex flex-col justify-between hover:border-red-400 transition-all shadow-sm group"
             >
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">
+                  <span className="text-[10px] font-bold tracking-widest text-stone-500 uppercase">
                     {dist.state}
                   </span>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${badge.bg}`}>
@@ -75,20 +75,20 @@ export default function Districts() {
                   </span>
                 </div>
 
-                <h3 className="text-lg font-bold text-slate-100 group-hover:text-blue-400 transition-colors">
+                <h3 className="text-lg font-extrabold text-stone-900 group-hover:text-red-600 transition-colors">
                   {dist.name}
                 </h3>
 
                 {/* Score Gauge */}
-                <div className="mt-3 bg-slate-900/80 p-3 rounded-lg border border-slate-700/60">
+                <div className="mt-3 bg-stone-50 p-3 rounded-lg border border-stone-200">
                   <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="text-slate-400 font-semibold">Accessibility Index</span>
-                    <span className="font-extrabold text-slate-100">{dist.score}/100</span>
+                    <span className="text-stone-600 font-semibold">Accessibility Index</span>
+                    <span className="font-extrabold text-stone-900">{dist.score}/100</span>
                   </div>
-                  <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                  <div className="w-full bg-stone-200 rounded-full h-2 overflow-hidden">
                     <div
                       className={`h-2 rounded-full ${
-                        dist.score >= 80 ? 'bg-emerald-400' : dist.score >= 60 ? 'bg-amber-400' : 'bg-red-500'
+                        dist.score >= 80 ? 'bg-emerald-500' : dist.score >= 60 ? 'bg-amber-500' : 'bg-red-600'
                       }`}
                       style={{ width: `${dist.score}%` }}
                     />
@@ -97,9 +97,9 @@ export default function Districts() {
               </div>
 
               {/* Stats Footer */}
-              <div className="mt-4 pt-3 border-t border-slate-700/60 flex items-center justify-between text-xs text-slate-400">
+              <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between text-xs text-stone-600">
                 <span className="flex items-center gap-1">
-                  <AlertTriangle size={12} className="text-amber-400" />
+                  <AlertTriangle size={12} className="text-amber-600" />
                   <strong>{dist.active_incidents}</strong> Active Incidents
                 </span>
                 <span>

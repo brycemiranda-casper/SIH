@@ -16,11 +16,11 @@ const Sidebar = ({ activeLayers, toggleLayer }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
         {!isMinimized && (
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Navigation size={24} color="#3b82f6" /> NER GIS Command
+            <Navigation size={24} color="#dc2626" /> RightRoute GIS Command
           </h1>
         )}
         {isMinimized && (
-          <Navigation size={24} color="#3b82f6" style={{ margin: '0 auto' }} />
+          <Navigation size={24} color="#dc2626" style={{ margin: '0 auto' }} />
         )}
         <button 
           onClick={() => setIsMinimized(!isMinimized)}

@@ -9,7 +9,7 @@ from database import engine, get_db
 
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="NEXUS-NER API", version="2.0.0")
+app = FastAPI(title="RightRoute API", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -241,7 +241,7 @@ def get_situation_report(db: Session = Depends(get_db)):
     districts_high_risk = db.query(models.District).filter(models.District.risk_level.in_(['HIGH', 'CRITICAL'])).count()
     
     return {
-        "report_title": "NEXUS-NER Daily Situation & Accessibility Summary",
+        "report_title": "RightRoute Daily Situation & Accessibility Summary",
         "generated_at": "Live Stream",
         "ner_accessibility_score": 78,
         "active_incidents": active_incidents,

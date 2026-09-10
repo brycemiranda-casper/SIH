@@ -1,4 +1,4 @@
-# NEXUS-NER — HACKATHON 3-5 MINUTE DEMO WALKTHROUGH SCRIPT
+# RightRoute — HACKATHON 3-5 MINUTE DEMO WALKTHROUGH SCRIPT
 
 This guide provides the exact step-by-step demonstration script for hackathon judges to showcase all 17 core requirements of MDoNER Smart Logistics & Accessibility Intelligence.
 
@@ -6,7 +6,7 @@ This guide provides the exact step-by-step demonstration script for hackathon ju
 
 ## 🎬 Demo Overview (30 Seconds)
 **Opening Statement**:
-> "Good morning judges! The North Eastern Region of India faces extreme logistics bottlenecks due to landslides, heavy rainfall, and floods. **NEXUS-NER** is an AI-powered regional command platform combining real-time GIS mapping, IMD/NDMA disaster feeds, district accessibility scoring, explainable AI risk prediction, dynamic vehicle rerouting, and essential commodity order tracking."
+> "Good morning judges! The North Eastern Region of India faces extreme logistics bottlenecks due to landslides, heavy rainfall, and floods. **RightRoute** is an AI-powered regional command platform combining real-time GIS mapping, IMD/NDMA disaster feeds, district accessibility scoring, explainable AI risk prediction, dynamic vehicle rerouting, and essential commodity order tracking."
 
 ---
 

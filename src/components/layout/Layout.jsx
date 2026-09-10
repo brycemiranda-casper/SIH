@@ -11,7 +11,7 @@ export default function Layout() {
 
   return (
     <div className={`flex h-screen font-sans overflow-hidden transition-colors duration-300 ${
-      emergencyMode ? 'bg-red-950 text-red-100' : 'bg-slate-900 text-slate-100'
+      emergencyMode ? 'bg-red-50 text-red-950' : 'bg-[#faf9f6] text-stone-900'
     }`}>
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">

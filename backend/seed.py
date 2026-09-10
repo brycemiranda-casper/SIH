@@ -111,7 +111,7 @@ def seed_db():
 
     db.commit()
     db.close()
-    print("NEXUS-NER Database seeded successfully across all 8 NER states!")
+    print("RightRoute Database seeded successfully across all 8 NER states!")
 
 if __name__ == "__main__":
     seed_db()

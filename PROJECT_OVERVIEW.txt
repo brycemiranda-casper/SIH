@@ -1,11 +1,11 @@
 ================================================================================
-                    NEXUS-NER : PROJECT OVERVIEW & STATUS REPORT
+                    RightRoute : PROJECT OVERVIEW & STATUS REPORT
 ================================================================================
 Generated: September 9, 2026
 
 1. EXECUTIVE SUMMARY
 --------------------------------------------------------------------------------
-NEXUS-NER is an AI-powered Emergency Logistics, Disaster Response & Safe Route 
+RightRoute is an AI-powered Emergency Logistics, Disaster Response & Safe Route 
 Planning system. Built for disaster management authorities and fleet operations 
 managers, the platform provides real-time hazard monitoring, AI-optimized safe 
 route calculation, live NDMA/IMD disaster feed integration, and direct fleet 
